@@ -1,3 +1,4 @@
+import AdminApp from "./admin/AdminApp";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -997,6 +998,7 @@ function setMeta(path: string) {
 
 function App() {
   const path = usePath();
+  if (path.startsWith("/admin")) return <AdminApp />;
 
   useEffect(() => {
     setMeta(path);
