@@ -1,5 +1,6 @@
-import AdminApp from "./admin/AdminApp";
 import React, { useEffect, useMemo, useState } from "react";
+import AdminApp from "./admin/AdminApp";
+import { supabase } from "./lib";
 import {
   ArrowRight,
   BookOpen,
@@ -53,7 +54,48 @@ type ProductDeal = {
  * Keep this empty until we have real, verified product data and real affiliate URLs.
  * Never publish invented prices, ratings, review counts, discounts or timestamps.
  */
-export const LIVE_DEALS: ProductDeal[] = [];
+export let LIVE_DEALS: ProductDeal[] = [];
+
+
+function mapSupabaseProduct(row: any): ProductDeal {
+  const currentPrice = Number(row.current_price ?? 0);
+  const previousPrice = row.previous_price == null ? undefined : Number(row.previous_price);
+
+  const calculatedDiscount =
+    previousPrice && previousPrice > currentPrice
+      ? Math.round(((previousPrice - currentPrice) / previousPrice) * 100)
+      : undefined;
+
+  const rawSpecifications = row.specifications;
+  const specifications = Array.isArray(rawSpecifications)
+    ? rawSpecifications.map((item) =>
+        typeof item === "string" ? item : JSON.stringify(item)
+      )
+    : undefined;
+
+  return {
+    id: String(row.id),
+    slug: String(row.slug || row.id),
+    name: String(row.name || ""),
+    image: String(row.image_url || ""),
+    category: String(row.category || ""),
+    retailer: String(row.retailer || ""),
+    currentPrice,
+    previousPrice,
+    discountPercentage:
+      row.discount_percentage == null
+        ? calculatedDiscount
+        : Number(row.discount_percentage),
+    rating: row.rating == null ? undefined : Number(row.rating),
+    reviewCount: row.review_count == null ? undefined : Number(row.review_count),
+    description: row.description || row.short_description || undefined,
+    specifications,
+    affiliateUrl: String(row.affiliate_url || "#"),
+    lastChecked: row.updated_at || row.created_at || undefined,
+    isPriceDrop: Boolean(row.is_price_drop),
+    isFeatured: Boolean(row.is_featured),
+  };
+}
 
 const SITE_URL = "https://techbachat.com";
 
@@ -95,15 +137,15 @@ function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <button
       onClick={() => navigateTo("/")}
-      className={`flex items-center ${compact ? "" : "shrink-0"}`}
+      className={`flex items-center gap-2 ${compact ? "" : "shrink-0"}`}
       aria-label="TechBachat home"
     >
-      <img
-        src="/techbachat-website-logo.png"
-        alt="TechBachat"
-        className={compact ? "h-9 w-auto object-contain" : "h-9 w-auto max-w-[165px] object-contain"}
-        loading="eager"
-      />
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-500 text-slate-900 shadow-sm">
+        <Zap className="h-5 w-5 fill-current" />
+      </div>
+      <span className="text-xl font-black tracking-tight text-slate-900">
+        Tech<span className="text-lime-600">Bachat</span>
+      </span>
     </button>
   );
 }
@@ -190,8 +232,8 @@ function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 h-16 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl">
-      <div className="mx-auto flex h-full max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl shadow-sm">
+      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Logo />
 
         <nav className="hidden items-center gap-5 lg:flex">
@@ -712,7 +754,7 @@ function ProductPage({ slug }: { slug: string }) {
 
   if (!deal) {
     return (
-      <PageShell eyebrow="PRODUCT" title="Product">
+      <PageShell title="Product" eyebrow="PRODUCT">
         <EmptyDeals
           title="Product not available"
           description="This product is not currently in the TechBachat live deal catalogue."
@@ -998,11 +1040,42 @@ function setMeta(path: string) {
 
 function App() {
   const path = usePath();
-  if (path.startsWith("/admin")) return <AdminApp />;
+  const [, setProductsVersion] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProducts() {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("TechBachat: failed to load products", error);
+        LIVE_DEALS = [];
+      } else {
+        LIVE_DEALS = (data || []).map(mapSupabaseProduct);
+      }
+
+      setProductsVersion((version) => version + 1);
+    }
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setMeta(path);
   }, [path]);
+
+  if (path.startsWith("/admin")) return <AdminApp />;
 
   let page: React.ReactNode;
 
