@@ -21,6 +21,7 @@ import {
   Upload,
   X,
   Instagram,
+  Link,
   Send,
   Youtube,
 } from "lucide-react";
@@ -1195,9 +1196,32 @@ function ImageUpload({
   folder: "products" | "articles" | "media";
 }) {
   const [busy, setBusy] = useState(false);
+  const [imageUrl, setImageUrl] = useState(value || "");
+
+  useEffect(() => {
+    setImageUrl(value || "");
+  }, [value]);
+
+  const handleUrl = () => {
+    const url = imageUrl.trim();
+
+    if (!url) {
+      return;
+    }
+
+    try {
+      new URL(url);
+    } catch {
+      alert("Please enter a valid image URL.");
+      return;
+    }
+
+    onChange(url);
+  };
 
   return (
     <div className="space-y-3">
+      {/* Image preview */}
       <div className="flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50">
         {value ? (
           <img
@@ -1210,35 +1234,78 @@ function ImageUpload({
         )}
       </div>
 
-      <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:border-lime-400">
-        <Upload className="h-4 w-4" />
+      {/* Upload + URL options */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        {/* Upload image */}
+        <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:border-lime-400">
+          <Upload className="h-4 w-4" />
 
-        {busy ? "Uploading..." : "Upload image"}
+          {busy ? "Uploading..." : "Upload image"}
 
-        <input
-          hidden
-          type="file"
-          accept="image/*"
-          disabled={busy}
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
+          <input
+            hidden
+            type="file"
+            accept="image/*"
+            disabled={busy}
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
 
-            if (!file) return;
+              if (!file) {
+                return;
+              }
 
-            setBusy(true);
+              setBusy(true);
 
-            try {
-              const url = await uploadImage(file, folder);
-              onChange(url);
-            } catch (error: any) {
-              alert(error?.message || "Image upload failed");
-            } finally {
-              setBusy(false);
-              event.target.value = "";
-            }
-          }}
-        />
-      </label>
+              try {
+                const url = await uploadImage(file, folder);
+                setImageUrl(url);
+                onChange(url);
+              } catch (error: any) {
+                alert(error?.message || "Image upload failed");
+              } finally {
+                setBusy(false);
+                event.target.value = "";
+              }
+            }}
+          />
+        </label>
+      </div>
+
+      {/* Image URL */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="mb-2 flex items-center gap-2 text-sm font-black text-slate-700">
+          <Link className="h-4 w-4" />
+          Or paste image URL
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="url"
+            value={imageUrl}
+            placeholder="https://example.com/image.jpg"
+            onChange={(event) => setImageUrl(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handleUrl();
+              }
+            }}
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-lime-500"
+          />
+
+          <button
+            type="button"
+            onClick={handleUrl}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white hover:bg-slate-800"
+          >
+            Use URL
+          </button>
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500">
+          Paste a direct image URL. The image does not need to be uploaded to Supabase.
+        </p>
+      </div>
     </div>
   );
 }
