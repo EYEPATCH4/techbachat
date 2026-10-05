@@ -511,19 +511,19 @@ function ProductCard({ p }: { p: Product }) {
           <button
             type="button"
             onClick={() => nav("/product/" + p.slug)}
-            className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-black text-slate-700 hover:border-lime-400 hover:bg-lime-50"
+            className="flex-1 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-black text-slate-700 hover:border-lime-400 hover:bg-lime-50"
           >
             View
           </button>
 
           <a
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-lime-500 px-3 py-2.5 text-sm font-black text-slate-950 hover:bg-lime-600"
+            className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-lime-500 px-3 py-2.5 text-sm font-black text-slate-950 hover:bg-lime-600"
             href={affiliate}
             target="_blank"
             rel="noopener noreferrer nofollow sponsored"
           >
-            Check Deal
-            <ExternalLink className="h-3.5 w-3.5" />
+            <span>Check Deal</span>
+            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
           </a>
         </div>
       </div>
